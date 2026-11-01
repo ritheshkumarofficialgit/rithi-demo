@@ -801,7 +801,7 @@ function home(){
     ${reviewsBlock(allRv,'','',3)}
   </div></section>
 
-  <section class="s" id="journal" style="padding-top:0"><div class="wrap">
+  <section class="s" id="home-journal" style="padding-top:0"><div class="wrap">
     <div class="sec-head"><div><span class="eyebrow">From our story</span><h2 class="display">Collected Thoughts</h2></div><p class="lede">A place for the things that inspire us: material, memory, ritual, and the beauty of paying attention.</p></div>
     <div class="journal">${J.map(j=>jCard(j)).join('')}</div>
   </div></section>
@@ -1149,7 +1149,7 @@ function route(){
   else{app.innerHTML=home();top=false;if(h==='collections'||h==='newsletter'){const el=document.getElementById(h);if(el){el.scrollIntoView({block:'start'});top=false}}else{top=true}}
   clearInterval(railT);clearInterval(heroT);heroI=0;if(h==='home'||h==='collections'||h==='newsletter'||!h)initHero();
   document.title=title;document.body.classList.toggle('on-pdp',h.startsWith('p-'));$('#waPanel').classList.remove('open');
-  if(top)window.scrollTo(0,0);
+  if(top){window.scrollTo(0,0);requestAnimationFrame(()=>window.scrollTo(0,0));setTimeout(()=>{if(location.hash.slice(1)===h)window.scrollTo(0,0)},120)}
   $('#mnav').classList.remove('open');$('#burger').classList.remove('open');$('#burger').setAttribute('aria-expanded','false');
 }
 function setCur(c){
@@ -1162,6 +1162,7 @@ function setCur(c){
 /* ---------- events ---------- */
 function refreshCo(){const d=coDyn();const sh=$('#coShip');if(sh)sh.innerHTML=d.ship;$('#coSum').innerHTML=d.sum}
 document.addEventListener('click',e=>{
+  {const a=e.target.closest&&e.target.closest('a[href^="#"]');if(a){const hr=a.getAttribute('href').slice(1);if(hr&&hr!=='collections'&&hr!=='newsletter'&&hr===(location.hash.slice(1)||'home')){e.preventDefault();window.scrollTo({top:0,behavior:'smooth'});closeAll();return}}}
   const t=e.target.closest('button,a,[data-quick]');if(!t)return;
   if(t.dataset.filter){filter=t.dataset.filter;if(location.hash==='#shop')setTimeout(route,0)}
   if(t.dataset.chip){filter=t.dataset.chip;$('#app').innerHTML=shop();return}
@@ -1217,6 +1218,7 @@ document.addEventListener('submit',e=>{
 $('#scrim').addEventListener('click',closeAll);
 $('#waGo').href=waLink('Hi Rithi, I have a question.');
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAll()});
+try{history.scrollRestoration='manual'}catch(e){}
 window.addEventListener('hashchange',route);
 
 updateAcct();setCur(cur);renderCart();
