@@ -474,6 +474,19 @@ body.on-pdp .wa-fab{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 .wa-ico{width:56px;height:56px;border-radius:50%;background:#25D366;color:#fff;display:grid;place-items:center}.wa-ico svg{width:30px;height:30px}
 .wa-card .btn.solid{background:#25D366;border-color:#25D366;color:#fff}
 @media (max-width:520px){.wa-card{grid-template-columns:1fr}}
+.track{list-style:none;display:flex;margin:30px 0 26px;padding:0;gap:0}
+.track li{flex:1;text-align:center;position:relative;font-size:12px;color:var(--muted)}
+.track li i{display:block;width:14px;height:14px;border-radius:50%;border:1px solid var(--copper);background:var(--cream);margin:0 auto 10px;position:relative;z-index:1}
+.track li::before{content:"";position:absolute;top:6px;left:-50%;width:100%;height:1px;background:var(--line)}
+.track li:first-child::before{display:none}
+.track li.done i{background:var(--copper)}.track li.done::before{background:var(--copper)}
+.track li.now span{color:var(--ink);font-weight:500}
+.ordinfo{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;text-align:left;margin:30px 0 8px}
+.ordinfo small{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--copper);margin-bottom:4px}.ordinfo p{margin:0;font-size:14px}
+.wamock{margin-top:28px;text-align:left}.wamock small{display:block;font-size:12px;color:var(--muted);margin-bottom:8px}
+.wamock .bub{background:#E7F5DC;border-radius:4px 14px 14px 14px;padding:12px 16px;max-width:420px;color:#1f2a18}.wamock .bub p{margin:4px 0 0;font-size:14px;line-height:1.5}
+.ordcard{border:1px solid var(--line);padding:22px;margin-bottom:22px}
+@media (max-width:640px){.ordinfo{grid-template-columns:1fr}.track li{font-size:10.5px}}
 .topics{display:grid;gap:8px;margin-bottom:10px}
 .topic{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border:1px solid var(--line);background:rgba(255,255,255,.4);min-height:56px;color:var(--ink)}.topic:hover{border-color:var(--ink)}
 /* checkout */
@@ -1015,7 +1028,7 @@ function account(){
   if(!user)return `<div class="wrap"><div class="page-head"><span class="eyebrow">Account</span><h1 class="display">Welcome back.</h1><p>Sign in to see your orders, saved pieces and delivery details.</p><div style="margin-top:28px"><button class="btn solid" data-open-auth="in">Sign in or create account</button></div></div></div>`;
   const w=P.filter(p=>isWish(p.id));
   const body=acctTab==='wishlist'?(w.length?`<div class="grid" style="grid-template-columns:repeat(3,1fr)">${w.map(card).join('')}</div>`:`<div class="empty" style="text-align:left;padding-left:0"><div class="display">Nothing saved yet.</div><p>Tap the heart on any piece to save it here.</p><a class="link" href="#shop">Browse pieces ${arrow}</a></div>`)
-   :acctTab==='orders'?`<div class="empty" style="text-align:left;padding-left:0"><div class="display">No orders yet.</div><p>When you place an order, it appears here with live tracking.</p><a class="link" href="#shop">Start shopping ${arrow}</a></div>`
+   :acctTab==='orders'?(ORDERS.length?ORDERS.map(o=>`<div class="ordcard"><div class="tot" style="margin-bottom:12px"><b>${o.id}</b><span>${new Date(o.at).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span></div>${orderBlock(o)}</div>`).join(''):`<div class="empty" style="text-align:left;padding-left:0"><div class="display">No orders yet.</div><p>When you place an order, it appears here with tracking.</p><a class="link" href="#shop">Start shopping ${arrow}</a></div>`)
    :`<form class="frm formcard" id="detForm"><div class="fld"><label for="dName">Name</label><input id="dName" value="${user.name}" autocomplete="name" required></div><div class="fld"><label for="dEmail">Email</label><input id="dEmail" type="email" value="${user.email}" autocomplete="email" required></div><p style="margin:0;font-size:13px;color:var(--muted)">Signed in with ${user.provider}.</p><div class="row"><button class="btn solid" type="submit">Save details</button></div><p class="okmsg" id="detOk" role="status"></p></form>`;
   return `<div class="wrap"><div class="page-head" style="text-align:left;padding-bottom:20px"><span class="eyebrow">Account</span><h1 class="display" style="margin-left:0">Hello, ${user.name.split(' ')[0]}.</h1></div>
   <div class="acct"><div class="tabs2">${[['wishlist','Saved pieces'],['orders','Orders'],['details','Details']].map(([k,t])=>`<button data-atab="${k}" class="${k===acctTab?'on':''}">${t}</button>`).join('')}<button data-signout>Sign out</button></div><div>${body}</div></div></div>`;
@@ -1043,6 +1056,7 @@ function signIn(u){user=u;store.set('rithi-user',u);updateAcct();closeAll();toas
 function updateAcct(){$('#acctLbl').textContent=user?user.name.split(' ')[0]:'';$('#mAcct').textContent=user?'Account, '+user.name.split(' ')[0]:'Sign in or create account'}
 
 /* ---------- checkout ---------- */
+const ORDERS=store.get('rithi-orders',[]);
 let co={country:'India',ship:'std',promo:false,msg:''},lastOrder=null;
 const COUNTRIES=['India'];
 function shipOpts(){const sub=cartTotal();return [{k:'std',n:'Standard delivery',t:'3 to 7 working days',p:sub>=FREE_USD?0:SHIP_USD}]}
@@ -1082,12 +1096,21 @@ function checkout(){
   <form class="co" id="coForm"><div id="coLeft">${coLeft()}</div><aside class="summary" id="coSum">${coDyn().sum}</aside></form></div>`;
 }
 function reCo(){const l=$('#coLeft');if(l)l.innerHTML=coLeft()}
+const STEPS=['Order placed','Packed','Shipped','Out for delivery','Delivered'];
+function orderBlock(o){
+  const lines=`<div style="display:grid;gap:10px;background:var(--sand);padding:22px;text-align:left">${o.lines.map(l=>`<div class="tot"><span>${l.n}${l.opt?' ('+l.opt+')':''} x ${l.q}</span><span>${money(l.p)}</span></div>`).join('')}${o.disc?`<div class="tot"><span>DIWALI15</span><span>&minus;${money(o.disc)}</span></div>`:''}<div class="tot"><span>Shipping, ${o.sel}</span><span>${o.ship?money(o.ship):'Free'}</span></div><div class="tot big"><span>Total</span><b>${money(o.tot)}</b></div></div>`;
+  const tl=`<ol class="track">${STEPS.map((t,i)=>`<li class="${i<=o.step?'done':''}${i===o.step?' now':''}"><i></i><span>${t}</span></li>`).join('')}</ol>`;
+  const info=`<div class="ordinfo"><div><small>Delivering to</small><p>${o.name}, ${o.addr}</p></div><div><small>Estimated delivery</small><p>${o.eta}</p></div><div><small>Payment</small><p>${o.pay} (demo, nothing charged)</p></div></div>`;
+  const ph='+91 '+o.phone.slice(0,5)+' '+o.phone.slice(5);
+  const wa=`<div class="wamock"><small>WhatsApp message to ${ph}</small><div class="bub"><b>Rithi</b><p>Hi ${o.name}, your order ${o.id} is confirmed. Total ${money(o.tot)}. We will message you again when it ships. Estimated delivery: ${o.eta}.</p></div></div>`;
+  return info+tl+`<div class="row" style="justify-content:center;margin:6px 0 26px"><button class="btn ghost" data-advance="${o.id}" ${o.step>=4?'disabled':''}>Demo: move to next step</button></div>`+lines+wa;
+}
 function thanks(){
   if(!lastOrder)return `<div class="wrap"><div class="page-head"><h1 class="display">Thank you.</h1><p><a class="link" href="#shop">Continue shopping</a></p></div></div>`;
   const o=lastOrder;
-  return `<div class="wrap"><div class="page-head done"><div class="circ"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div><span class="eyebrow">Mock order ${o.id}</span><h1 class="display" style="margin:16px 0">Thank you, ${o.name}.</h1><p>This is how your confirmation looks. A real order would send updates by WhatsApp and SMS to +91 ${o.phone.slice(0,5)} ${o.phone.slice(5)}. No payment was taken. Check out again with the same number to see your address filled in automatically.</p>
-  <div style="margin:28px 0;text-align:left;background:var(--sand);padding:22px;display:grid;gap:10px">${o.lines.map(l=>`<div class="tot"><span>${l.n}${l.opt?' ('+l.opt+')':''} x ${l.q}</span><span>${money(l.p)}</span></div>`).join('')}${o.disc?`<div class="tot"><span>DIWALI15</span><span>&minus;${money(o.disc)}</span></div>`:''}<div class="tot"><span>Shipping, ${o.sel}</span><span>${o.ship?money(o.ship):'Free'}</span></div><div class="tot big"><span>Total</span><b>${money(o.tot)}</b></div></div>
-  <div class="row" style="justify-content:center"><a class="btn solid" href="#shop">Continue shopping</a><a class="btn ghost" href="#shipping">Shipping policy</a></div></div></div>`;
+  return `<div class="wrap"><div class="page-head done"><div class="circ"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div><span class="eyebrow">Mock order ${o.id}</span><h1 class="display" style="margin:16px 0">Thank you, ${o.name}.</h1><p>This is how your confirmation looks. A real order would send updates by WhatsApp and SMS. No payment was taken. Check out again with the same number to see your address filled in automatically.</p>
+  <div style="margin:28px 0 0">${orderBlock(o)}</div>
+  <div class="row" style="justify-content:center;margin-top:26px"><a class="btn solid" href="#shop">Continue shopping</a><a class="btn ghost" href="#account" data-gotoorders>See in my account</a></div></div></div>`;
 }
 
 /* ---------- search ---------- */
@@ -1163,6 +1186,8 @@ document.addEventListener('click',e=>{
   if(t.dataset.coedit!==undefined){co.edit=true;reCo();return}
   if(t.dataset.hd!==undefined){heroShow(+t.dataset.hd);return}
   if(t.dataset.promo!==undefined){const v=($('#promoIn').value||'').trim().toUpperCase();if(v==='DIWALI15'){co.promo=true;co.msg='Code applied: 15% off.'}else{co.promo=false;co.msg=v?'That code is not valid.':'Enter a code.'}refreshCo();return}
+  if(t.dataset.advance){const o=ORDERS.find(x=>x.id===t.dataset.advance);if(o&&o.step<4){o.step++;store.set('rithi-orders',ORDERS);if(lastOrder&&lastOrder.id===o.id)lastOrder.step=o.step;const h=location.hash;$('#app').innerHTML=h==='#account'?account():thanks();toast(STEPS[o.step])}return}
+  if(t.dataset.gotoorders!==undefined){acctTab='orders'}
   if(t.dataset.helpopen!==undefined){e.preventDefault();$('#waPanel').classList.add('open');return}
   if(t.dataset.wa){e.preventDefault();$('#waGo').href=waLink(t.dataset.wa);$('#waGo').click();return}
   if(t.id==='waFab'||t.id==='waClose'){$('#waPanel').classList.toggle('open',t.id==='waFab'&&!$('#waPanel').classList.contains('open'));return}
@@ -1187,7 +1212,7 @@ document.addEventListener('submit',e=>{
   if(f.id==='retForm'){e.preventDefault();$('#retOk').textContent='Request received. We will email return instructions within 1 to 2 working days.';f.reset()}
   if(f.id==='detForm'){e.preventDefault();user.name=$('#dName').value;user.email=$('#dEmail').value;store.set('rithi-user',user);updateAcct();$('#detOk').textContent='Details saved.'}
   if(f.id==='authForm'){e.preventDefault();const em=$('#aEmail').value,nm=f.dataset.mode==='up'?$('#aName').value:em.split('@')[0];signIn({name:nm.charAt(0).toUpperCase()+nm.slice(1),email:em,provider:'email'})}
-  if(f.id==='coForm'){e.preventDefault();if(co.step!=='details')return;const d=coDyn();let p=co.prof;if(!p||co.edit){p={name:$('#coName').value.trim(),zip:$('#coZip').value.trim(),city:$('#coCity').value.trim(),addr:$('#coAddr').value.trim()}}store.set('rithi-prof-'+co.phone,p);lastOrder={id:'RT-'+(1000+Math.floor(Math.random()*9000)),name:p.name.split(' ')[0],phone:co.phone,lines:cart.map(i=>({n:byId[i.id].name,opt:i.opt,q:i.qty,p:byId[i.id].usd*i.qty})),ship:d.sel.p,sel:d.sel.n,tot:d.tot,disc:d.disc};co.promo=false;co.msg='';co.step='phone';cart=[];saveCart();renderCart();location.hash='#thanks'}
+  if(f.id==='coForm'){e.preventDefault();if(co.step!=='details')return;const d=coDyn();let p=co.prof;if(!p||co.edit){p={name:$('#coName').value.trim(),zip:$('#coZip').value.trim(),city:$('#coCity').value.trim(),addr:$('#coAddr').value.trim()}}store.set('rithi-prof-'+co.phone,p);lastOrder={id:'RT-'+(1000+Math.floor(Math.random()*9000)),name:p.name.split(' ')[0],phone:co.phone,lines:cart.map(i=>({n:byId[i.id].name,opt:i.opt,q:i.qty,p:byId[i.id].usd*i.qty})),ship:d.sel.p,sel:d.sel.n,tot:d.tot,disc:d.disc,addr:p.addr+', '+p.city+' '+p.zip,pay:(document.querySelector('input[name=pay]:checked')?.closest('label')?.querySelector('span')?.firstChild?.textContent||'UPI').trim(),eta:eta(),at:Date.now(),step:0};ORDERS.unshift(lastOrder);store.set('rithi-orders',ORDERS);co.promo=false;co.msg='';co.step='phone';cart=[];saveCart();renderCart();location.hash='#thanks'}
 });
 $('#scrim').addEventListener('click',closeAll);
 $('#waGo').href=waLink('Hi Rithi, I have a question.');
